@@ -1,0 +1,187 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles for dropdowns */
+select {
+  @apply bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white appearance-none cursor-pointer hover:bg-white/20 transition-all duration-300;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1.25em;
+  padding-right: 2.5rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+select.long-text {
+  min-width: 200px;
+  max-width: 300px;
+}
+
+select option {
+  @apply bg-indigo-900 text-white;
+  padding: 0.5rem 1rem;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+/* Optimized animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes success {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes floatDelayed {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes celebration {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  70% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade {
+  animation: fadeIn 0.3s ease-out forwards;
+  will-change: opacity;
+}
+
+.animate-slide {
+  animation: slideUp 0.3s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.animate-success {
+  animation: success 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-delayed {
+  animation: floatDelayed 3s ease-in-out infinite 1.5s;
+  will-change: transform;
+}
+
+.animate-celebration {
+  animation: celebration 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-pop {
+  animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  will-change: transform, opacity;
+}
+
+/* Custom form styles */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+textarea {
+  @apply bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500/30 hover:bg-white/20 transition-all duration-300;
+}
+
+/* Custom label styles */
+label {
+  @apply text-purple-200 font-medium;
+}
+
+/* Custom button styles */
+button {
+  @apply focus:outline-none focus:ring-2 focus:ring-purple-500/30;
+}
+
+/* Custom table styles */
+table {
+  @apply w-full border-collapse;
+}
+
+th {
+  @apply bg-white/10 text-purple-200 font-semibold p-3 text-left;
+}
+
+td {
+  @apply border-t border-purple-500/20 p-3 text-white;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-white/5;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-500/50 rounded-full hover:bg-purple-500/70;
+}
+
+/* Transition utilities */
+.transition-gpu {
+  transition-property: transform, opacity;
+  will-change: transform, opacity;
+}
