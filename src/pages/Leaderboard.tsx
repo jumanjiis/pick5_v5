@@ -52,6 +52,15 @@ const Leaderboard = () => {
   const fetchLeaderboard = async (matchId: string) => {
     setLoading(true);
     try {
+      // First, fetch all players to get their actual scores
+      const playersRef = collection(db, 'players');
+      const playersSnapshot = await getDocs(playersRef);
+      const playersData = playersSnapshot.docs.reduce((acc, doc) => {
+        acc[doc.id] = { id: doc.id, ...doc.data() };
+        return acc;
+      }, {} as { [key: string]: any });
+
+      // Then fetch predictions
       const predictionsRef = collection(db, 'predictions');
       const predictionsQuery = query(
         predictionsRef,
@@ -63,8 +72,11 @@ const Leaderboard = () => {
       
       for (const doc of predictionsSnapshot.docs) {
         const prediction = doc.data();
-        const correctPredictions = prediction.selectedPlayers.reduce((acc: number, player: any) => {
-          if (player.actualPoints !== undefined && player.actualPoints >= player.target) {
+        const correctPredictions = prediction.selectedPlayers.reduce((acc: number, playerId: string) => {
+          const player = playersData[playerId];
+          if (!player?.matchTargets?.[matchId]) return acc;
+          const target = player.matchTargets[matchId];
+          if (target.actualPoints !== undefined && target.actualPoints >= target.target) {
             return acc + 1;
           }
           return acc;
@@ -85,8 +97,10 @@ const Leaderboard = () => {
         });
       }
 
-      // Sort by correct predictions (descending)
-      const sortedLeaderboard = leaderboardData.sort((a, b) => b.correctPredictions - a.correctPredictions);
+      // Sort by correct predictions (descending) and take top 20
+      const sortedLeaderboard = leaderboardData
+        .sort((a, b) => b.correctPredictions - a.correctPredictions)
+        .slice(0, 20);
       setLeaderboard(sortedLeaderboard);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
@@ -138,7 +152,7 @@ const Leaderboard = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <h1 className="text-2xl font-bold text-white flex items-center">
               <Trophy className="h-6 w-6 mr-2 text-yellow-400" />
-              Leaderboard
+              Top 20 Players
             </h1>
             <select
               value={selectedMatch}
