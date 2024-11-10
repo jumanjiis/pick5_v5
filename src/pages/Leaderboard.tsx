@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Trophy, Medal, Crown, Star, AlertCircle } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -13,6 +13,7 @@ type LeaderboardEntry = {
   totalPredictions: number;
   matchId: string;
   matchDetails: Match;
+  timestamp?: Date;
 };
 
 const Leaderboard = () => {
@@ -49,59 +50,83 @@ const Leaderboard = () => {
     }
   };
 
+  const calculateLeaderboard = async (matchId: string): Promise<LeaderboardEntry[]> => {
+    // First, fetch all players to get their actual scores
+    const playersRef = collection(db, 'players');
+    const playersSnapshot = await getDocs(playersRef);
+    const playersData = playersSnapshot.docs.reduce((acc, doc) => {
+      acc[doc.id] = { id: doc.id, ...doc.data() };
+      return acc;
+    }, {} as { [key: string]: any });
+
+    // Then fetch predictions
+    const predictionsRef = collection(db, 'predictions');
+    const predictionsQuery = query(
+      predictionsRef,
+      where('matchId', '==', matchId)
+    );
+    const predictionsSnapshot = await getDocs(predictionsQuery);
+    
+    const leaderboardData: LeaderboardEntry[] = [];
+    
+    for (const doc of predictionsSnapshot.docs) {
+      const prediction = doc.data();
+      const correctPredictions = prediction.selectedPlayers.reduce((acc: number, playerId: string) => {
+        const player = playersData[playerId];
+        if (!player?.matchTargets?.[matchId]) return acc;
+        const target = player.matchTargets[matchId];
+        if (target.actualPoints !== undefined && target.actualPoints >= target.target) {
+          return acc + 1;
+        }
+        return acc;
+      }, 0);
+
+      // Get match details
+      const matchDoc = await getDocs(query(collection(db, 'matches'), where('id', '==', prediction.matchId)));
+      const matchDetails = matchDoc.docs[0]?.data() as Match;
+
+      leaderboardData.push({
+        userId: prediction.userId,
+        userEmail: prediction.userEmail,
+        displayName: prediction.userEmail.split('@')[0],
+        correctPredictions,
+        totalPredictions: prediction.selectedPlayers.length,
+        matchId: prediction.matchId,
+        matchDetails,
+        timestamp: new Date()
+      });
+    }
+
+    // Sort by correct predictions (descending) and take top 20
+    return leaderboardData
+      .sort((a, b) => b.correctPredictions - a.correctPredictions)
+      .slice(0, 20);
+  };
+
   const fetchLeaderboard = async (matchId: string) => {
     setLoading(true);
     try {
-      // First, fetch all players to get their actual scores
-      const playersRef = collection(db, 'players');
-      const playersSnapshot = await getDocs(playersRef);
-      const playersData = playersSnapshot.docs.reduce((acc, doc) => {
-        acc[doc.id] = { id: doc.id, ...doc.data() };
-        return acc;
-      }, {} as { [key: string]: any });
+      // Try to fetch cached leaderboard first
+      const leaderboardRef = doc(db, 'leaderboards', matchId);
+      const leaderboardDoc = await getDoc(leaderboardRef);
 
-      // Then fetch predictions
-      const predictionsRef = collection(db, 'predictions');
-      const predictionsQuery = query(
-        predictionsRef,
-        where('matchId', '==', matchId)
-      );
-      const predictionsSnapshot = await getDocs(predictionsQuery);
-      
-      const leaderboardData: LeaderboardEntry[] = [];
-      
-      for (const doc of predictionsSnapshot.docs) {
-        const prediction = doc.data();
-        const correctPredictions = prediction.selectedPlayers.reduce((acc: number, playerId: string) => {
-          const player = playersData[playerId];
-          if (!player?.matchTargets?.[matchId]) return acc;
-          const target = player.matchTargets[matchId];
-          if (target.actualPoints !== undefined && target.actualPoints >= target.target) {
-            return acc + 1;
-          }
-          return acc;
-        }, 0);
+      let leaderboardData: LeaderboardEntry[];
 
-        // Get match details
-        const matchDoc = await getDocs(query(collection(db, 'matches'), where('id', '==', prediction.matchId)));
-        const matchDetails = matchDoc.docs[0]?.data() as Match;
-
-        leaderboardData.push({
-          userId: prediction.userId,
-          userEmail: prediction.userEmail,
-          displayName: prediction.userEmail.split('@')[0], // Simple display name from email
-          correctPredictions,
-          totalPredictions: prediction.selectedPlayers.length,
-          matchId: prediction.matchId,
-          matchDetails
+      if (leaderboardDoc.exists()) {
+        // Use cached data
+        leaderboardData = leaderboardDoc.data().entries as LeaderboardEntry[];
+      } else {
+        // Calculate new leaderboard
+        leaderboardData = await calculateLeaderboard(matchId);
+        
+        // Cache the results
+        await setDoc(leaderboardRef, {
+          entries: leaderboardData,
+          lastUpdated: new Date()
         });
       }
 
-      // Sort by correct predictions (descending) and take top 20
-      const sortedLeaderboard = leaderboardData
-        .sort((a, b) => b.correctPredictions - a.correctPredictions)
-        .slice(0, 20);
-      setLeaderboard(sortedLeaderboard);
+      setLeaderboard(leaderboardData);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
     } finally {
