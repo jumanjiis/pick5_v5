@@ -51,56 +51,64 @@ const Leaderboard = () => {
   };
 
   const calculateLeaderboard = async (matchId: string): Promise<LeaderboardEntry[]> => {
-    // First, fetch all players to get their actual scores
-    const playersRef = collection(db, 'players');
-    const playersSnapshot = await getDocs(playersRef);
-    const playersData = playersSnapshot.docs.reduce((acc, doc) => {
-      acc[doc.id] = { id: doc.id, ...doc.data() };
-      return acc;
-    }, {} as { [key: string]: any });
-
-    // Then fetch predictions
-    const predictionsRef = collection(db, 'predictions');
-    const predictionsQuery = query(
-      predictionsRef,
-      where('matchId', '==', matchId)
-    );
-    const predictionsSnapshot = await getDocs(predictionsQuery);
-    
-    const leaderboardData: LeaderboardEntry[] = [];
-    
-    for (const doc of predictionsSnapshot.docs) {
-      const prediction = doc.data();
-      const correctPredictions = prediction.selectedPlayers.reduce((acc: number, playerId: string) => {
-        const player = playersData[playerId];
-        if (!player?.matchTargets?.[matchId]) return acc;
-        const target = player.matchTargets[matchId];
-        if (target.actualPoints !== undefined && target.actualPoints >= target.target) {
-          return acc + 1;
-        }
+    try {
+      // First, fetch all players to get their actual scores
+      const playersRef = collection(db, 'players');
+      const playersSnapshot = await getDocs(playersRef);
+      const playersData = playersSnapshot.docs.reduce((acc, doc) => {
+        acc[doc.id] = { id: doc.id, ...doc.data() };
         return acc;
-      }, 0);
+      }, {} as { [key: string]: any });
 
-      // Get match details
-      const matchDoc = await getDocs(query(collection(db, 'matches'), where('id', '==', prediction.matchId)));
-      const matchDetails = matchDoc.docs[0]?.data() as Match;
+      // Fetch the match details first
+      const matchDoc = await getDoc(doc(db, 'matches', matchId));
+      if (!matchDoc.exists()) {
+        throw new Error('Match not found');
+      }
+      const matchDetails = { id: matchDoc.id, ...matchDoc.data() } as Match;
 
-      leaderboardData.push({
-        userId: prediction.userId,
-        userEmail: prediction.userEmail,
-        displayName: prediction.userEmail.split('@')[0],
-        correctPredictions,
-        totalPredictions: prediction.selectedPlayers.length,
-        matchId: prediction.matchId,
-        matchDetails,
-        timestamp: new Date()
-      });
+      // Then fetch predictions
+      const predictionsRef = collection(db, 'predictions');
+      const predictionsQuery = query(
+        predictionsRef,
+        where('matchId', '==', matchId)
+      );
+      const predictionsSnapshot = await getDocs(predictionsQuery);
+      
+      const leaderboardData: LeaderboardEntry[] = [];
+      
+      for (const doc of predictionsSnapshot.docs) {
+        const prediction = doc.data();
+        const correctPredictions = prediction.selectedPlayers.reduce((acc: number, playerId: string) => {
+          const player = playersData[playerId];
+          if (!player?.matchTargets?.[matchId]) return acc;
+          const target = player.matchTargets[matchId];
+          if (target.actualPoints !== undefined && target.actualPoints >= target.target) {
+            return acc + 1;
+          }
+          return acc;
+        }, 0);
+
+        leaderboardData.push({
+          userId: prediction.userId,
+          userEmail: prediction.userEmail,
+          displayName: prediction.userEmail.split('@')[0],
+          correctPredictions,
+          totalPredictions: prediction.selectedPlayers.length,
+          matchId: prediction.matchId,
+          matchDetails,
+          timestamp: new Date()
+        });
+      }
+
+      // Sort by correct predictions (descending) and take top 20
+      return leaderboardData
+        .sort((a, b) => b.correctPredictions - a.correctPredictions)
+        .slice(0, 20);
+    } catch (error) {
+      console.error('Error calculating leaderboard:', error);
+      return [];
     }
-
-    // Sort by correct predictions (descending) and take top 20
-    return leaderboardData
-      .sort((a, b) => b.correctPredictions - a.correctPredictions)
-      .slice(0, 20);
   };
 
   const fetchLeaderboard = async (matchId: string) => {
@@ -114,21 +122,28 @@ const Leaderboard = () => {
 
       if (leaderboardDoc.exists()) {
         // Use cached data
-        leaderboardData = leaderboardDoc.data().entries as LeaderboardEntry[];
+        const data = leaderboardDoc.data();
+        leaderboardData = data.entries.map((entry: any) => ({
+          ...entry,
+          timestamp: entry.timestamp?.toDate() || new Date()
+        }));
       } else {
         // Calculate new leaderboard
         leaderboardData = await calculateLeaderboard(matchId);
         
-        // Cache the results
-        await setDoc(leaderboardRef, {
-          entries: leaderboardData,
-          lastUpdated: new Date()
-        });
+        if (leaderboardData.length > 0) {
+          // Cache the results
+          await setDoc(leaderboardRef, {
+            entries: leaderboardData,
+            lastUpdated: new Date()
+          });
+        }
       }
 
       setLeaderboard(leaderboardData);
     } catch (error) {
       console.error('Error fetching leaderboard:', error);
+      setLeaderboard([]);
     } finally {
       setLoading(false);
     }
@@ -196,7 +211,7 @@ const Leaderboard = () => {
             <div className="space-y-4">
               {leaderboard.map((entry, index) => (
                 <div
-                  key={entry.userId}
+                  key={`${entry.userId}-${index}`}
                   className={`bg-white/5 rounded-lg p-4 flex items-center justify-between transition-transform hover:scale-102 ${
                     index === 0 ? 'bg-yellow-500/10 border border-yellow-500/20' :
                     index === 1 ? 'bg-gray-500/10 border border-gray-500/20' :
