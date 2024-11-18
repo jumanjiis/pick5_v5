@@ -36,7 +36,8 @@ const Leaderboard = () => {
         ...doc.data(),
         timestamp: doc.data().timestamp.toDate()
       })) as Match[];
-
+       // Sort matches by timestamp in descending order
+      matches.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
       setCompletedMatches(matches);
       if (matches.length > 0) {
         setSelectedMatch(matches[0].id);
