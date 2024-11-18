@@ -116,7 +116,7 @@ const ManagePlayers = () => {
     setEditingPlayer(player);
     setEditingTargets({
       [player.id]: player.matchTargets?.[selectedMatch] || {
-        type: player.role === 'bowler' ? 'wickets' : player.role === 'auction' ? 'Price (in Crores)' : 'runs',
+        type: player.role === 'bowler' ? 'wickets' : player.role === 'auction' ? 'Cr' : 'runs',
         target: 0,
         actualPoints: undefined,
         isSelected: false
