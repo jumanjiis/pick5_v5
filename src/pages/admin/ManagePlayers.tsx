@@ -337,7 +337,7 @@ const ManagePlayers = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-purple-200 mb-2">
-                    {editingPlayer.role === 'auction' ? 'Price (in Crores)' : 'Target'}
+                    {editingPlayer.role === 'auction' ? 'Cr' : 'Target'}
                   </label>
                   <input
                     type="number"
