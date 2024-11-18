@@ -116,7 +116,7 @@ const ManagePlayers = () => {
     setEditingPlayer(player);
     setEditingTargets({
       [player.id]: player.matchTargets?.[selectedMatch] || {
-        type: player.role === 'bowler' ? 'wickets' : 'runs',
+        type: player.role === 'bowler' ? 'wickets' : player.role === 'auction' ? 'Price (in Crores)' : 'runs',
         target: 0,
         actualPoints: undefined,
         isSelected: false
@@ -180,6 +180,7 @@ const ManagePlayers = () => {
                   <option value="bowler">Bowler</option>
                   <option value="all-rounder">All-Rounder</option>
                   <option value="wicket-keeper">Wicket Keeper</option>
+                  <option value="auction">Auction</option>
                 </select>
               </div>
               <button
@@ -227,162 +228,61 @@ const ManagePlayers = () => {
             </div>
 
             {loading ? (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto"></div>
-              </div>
+              <div className="text-center py-4 text-purple-200">Loading players...</div>
+            ) : filteredPlayers.length === 0 ? (
+              <div className="text-center py-4 text-yellow-400">No players found</div>
             ) : (
               <div className="space-y-4">
                 {filteredPlayers.map(player => (
                   <div
                     key={player.id}
-                    className="bg-white/10 rounded-lg p-4 hover:bg-white/20 transition-colors"
+                    className="p-4 bg-white/5 border border-white/10 rounded-lg flex items-center justify-between"
                   >
-                    {editingPlayer?.id === player.id ? (
-                      <form onSubmit={handleUpdatePlayer} className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-purple-200 mb-2">Name</label>
-                            <input
-                              type="text"
-                              value={editingPlayer.name}
-                              onChange={e => setEditingPlayer(prev => ({ ...prev!, name: e.target.value }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                            />
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-white">{player.name}</h3>
+                      <p className="text-purple-200">{player.team}</p>
+                      <p className="text-purple-200">{player.role}</p>
+                      
+                      {player.matchTargets?.[selectedMatch] ? (
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <Target className="h-4 w-4 text-green-400" />
+                            <span className="text-green-400">
+                              {player.role === 'auction' ? 'Price: ' : 'Target: '}
+                              {player.matchTargets[selectedMatch].target} 
+                              {player.matchTargets[selectedMatch].type === 'price' ? ' Crores' : player.matchTargets[selectedMatch].type}
+                            </span>
                           </div>
-                          <div>
-                            <label className="block text-purple-200 mb-2">Team</label>
-                            <input
-                              type="text"
-                              value={editingPlayer.team}
-                              onChange={e => setEditingPlayer(prev => ({ ...prev!, team: e.target.value }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                            />
-                          </div>
+                          {player.matchTargets[selectedMatch].actualPoints !== undefined && (
+                            <div className="flex items-center space-x-2">
+                              <CheckCircle className="h-4 w-4 text-blue-400" />
+                              <span className="text-blue-400">
+                                {player.role === 'auction' ? 'Actual Price: ' : 'Actual: '}
+                                {player.matchTargets[selectedMatch].actualPoints} 
+                                {player.matchTargets[selectedMatch].type === 'price' ? ' Crores' : ''}
+                              </span>
+                            </div>
+                          )}
                         </div>
+                      ) : (
+                        <span className="text-yellow-400">No target set for selected match</span>
+                      )}
+                    </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-purple-200 mb-2">Role</label>
-                            <select
-                              value={editingPlayer.role}
-                              onChange={e => setEditingPlayer(prev => ({ ...prev!, role: e.target.value as Player['role'] }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                            >
-                              <option value="batsman">Batsman</option>
-                              <option value="bowler">Bowler</option>
-                              <option value="all-rounder">All-Rounder</option>
-                              <option value="wicket-keeper">Wicket Keeper</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-purple-200 mb-2">Target Type</label>
-                            <select
-                              value={editingTargets[player.id]?.type || 'runs'}
-                              onChange={e => setEditingTargets(prev => ({
-                                ...prev,
-                                [player.id]: { ...prev[player.id], type: e.target.value as 'runs' | 'wickets' }
-                              }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                            >
-                              <option value="runs">Runs</option>
-                              <option value="wickets">Wickets</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-purple-200 mb-2">Target</label>
-                            <input
-                              type="number"
-                              value={editingTargets[player.id]?.target || 0}
-                              onChange={e => setEditingTargets(prev => ({
-                                ...prev,
-                                [player.id]: { ...prev[player.id], target: parseInt(e.target.value) }
-                              }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                              min="0"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-purple-200 mb-2">Actual Points</label>
-                            <input
-                              type="number"
-                              value={editingTargets[player.id]?.actualPoints ?? ''}
-                              onChange={e => setEditingTargets(prev => ({
-                                ...prev,
-                                [player.id]: { ...prev[player.id], actualPoints: parseInt(e.target.value) }
-                              }))}
-                              className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
-                              min="0"
-                              placeholder="Leave empty if match not started"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingPlayer(null);
-                              setEditingTargets({});
-                            }}
-                            className="px-4 py-2 rounded-lg border border-red-500/20 text-red-400 hover:bg-red-500/10"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="submit"
-                            className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700"
-                          >
-                            Save Changes
-                          </button>
-                        </div>
-                      </form>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-white font-semibold">{player.name}</h3>
-                          <p className="text-purple-200 text-sm">{player.team} • {player.role}</p>
-                          <div className="mt-2">
-                            {player.matchTargets?.[selectedMatch] ? (
-                              <div className="space-y-1">
-                                <div className="flex items-center space-x-2">
-                                  <Target className="h-4 w-4 text-green-400" />
-                                  <span className="text-green-400">
-                                    Target: {player.matchTargets[selectedMatch].target} {player.matchTargets[selectedMatch].type}
-                                  </span>
-                                </div>
-                                {player.matchTargets[selectedMatch].actualPoints !== undefined && (
-                                  <div className="flex items-center space-x-2">
-                                    <CheckCircle className="h-4 w-4 text-blue-400" />
-                                    <span className="text-blue-400">
-                                      Actual: {player.matchTargets[selectedMatch].actualPoints}
-                                    </span>
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-yellow-400">No target set for selected match</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => handleEditClick(player)}
-                            className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
-                          >
-                            <Edit2 className="h-5 w-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeletePlayer(player.id)}
-                            className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => handleEditClick(player)}
+                        className="text-blue-400 hover:text-blue-500 transition-colors"
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlayer(player.id)}
+                        className="text-red-400 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -390,6 +290,105 @@ const ManagePlayers = () => {
           </div>
         </div>
       </div>
+
+      {editingPlayer && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-10 p-4">
+          <div className="bg-white/10 backdrop-blur-lg rounded-lg p-6 max-w-lg w-full border border-purple-500/20">
+            <h2 className="text-xl font-bold text-white mb-4">Edit Player</h2>
+            <form onSubmit={handleUpdatePlayer} className="space-y-4">
+              <div>
+                <label className="block text-purple-200 mb-2">Name</label>
+                <input
+                  type="text"
+                  value={editingPlayer.name}
+                  onChange={e => setEditingPlayer(prev => prev && ({ ...prev, name: e.target.value }))}
+                  required
+                  className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                  placeholder="Enter player name"
+                />
+              </div>
+              <div>
+                <label className="block text-purple-200 mb-2">Team</label>
+                <input
+                  type="text"
+                  value={editingPlayer.team}
+                  onChange={e => setEditingPlayer(prev => prev && ({ ...prev, team: e.target.value }))}
+                  required
+                  className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                  placeholder="Enter team name"
+                />
+              </div>
+              <div>
+                <label className="block text-purple-200 mb-2">Role</label>
+                <select
+                  value={editingPlayer.role}
+                  onChange={e => setEditingPlayer(prev => prev && ({ ...prev, role: e.target.value as Player['role'] }))}
+                  required
+                  className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                >
+                  <option value="batsman">Batsman</option>
+                  <option value="bowler">Bowler</option>
+                  <option value="all-rounder">All-Rounder</option>
+                  <option value="wicket-keeper">Wicket Keeper</option>
+                  <option value="auction">Auction</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-purple-200 mb-2">
+                    {editingPlayer.role === 'auction' ? 'Price (in Crores)' : 'Target'}
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTargets[editingPlayer.id]?.target || 0}
+                    onChange={e => setEditingTargets(prev => ({
+                      ...prev,
+                      [editingPlayer.id]: { ...prev[editingPlayer.id], target: parseInt(e.target.value) }
+                    }))}
+                    className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-purple-200 mb-2">
+                    Actual {editingPlayer.role === 'auction' ? 'Price' : 'Points'}
+                  </label>
+                  <input
+                    type="number"
+                    value={editingTargets[editingPlayer.id]?.actualPoints ?? ''}
+                    onChange={e => setEditingTargets(prev => ({
+                      ...prev,
+                      [editingPlayer.id]: { ...prev[editingPlayer.id], actualPoints: parseInt(e.target.value) }
+                    }))}
+                    className="w-full bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                    min="0"
+                    placeholder="Leave empty if match not started"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingPlayer(null)}
+                  className="text-red-400 hover:text-red-500 transition-colors"
+                >
+                  <XCircle className="h-5 w-5 inline-block mr-2" />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 flex items-center"
+                >
+                  <Save className="h-5 w-5 mr-2" />
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
