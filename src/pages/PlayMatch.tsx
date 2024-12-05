@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, getDoc, collection, getDocs, query, where, setDoc, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { AlertCircle, Trophy, X, ArrowLeft, CheckCircle, Plus, Users, Clock } from 'lucide-react';
+import { AlertCircle, Trophy, X, ArrowLeft, CheckCircle, Plus, Users, Clock, Filter } from 'lucide-react';
 import type { Match, Player, PlayerTarget } from '../types';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ const PlayMatch: React.FC = () => {
   const [matchStarted, setMatchStarted] = useState(false);
   const [correctPredictions, setCorrectPredictions] = useState(0);
   const [activeSlot, setActiveSlot] = useState<number | null>(null);
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>('all');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -146,7 +147,7 @@ const PlayMatch: React.FC = () => {
         userId: user.uid,
         userEmail: user.email,
         matchId: match.id,
-        selectedPlayers: selectedPlayers.filter(Boolean).map(player => player!.id), // Only store player IDs
+        selectedPlayers: selectedPlayers.filter(Boolean).map(player => player!.id),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         status: 'pending'
@@ -176,6 +177,10 @@ const PlayMatch: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  const filteredAvailablePlayers = availablePlayers.filter(player => 
+    selectedTeamFilter === 'all' || player.team === selectedTeamFilter
+  );
 
   if (loading) return <LoadingSpinner />;
   if (error) return (
@@ -345,22 +350,34 @@ const PlayMatch: React.FC = () => {
                             <X className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                           </button>
                         </div>
+
+                        {/* Team Filter */}
+                        <div className="mb-4 flex items-center space-x-2">
+                          <Filter className="h-5 w-5 text-purple-200" />
+                          <select
+                            value={selectedTeamFilter}
+                            onChange={(e) => setSelectedTeamFilter(e.target.value)}
+                            className="bg-white/10 border border-purple-500/20 rounded-lg px-4 py-2 text-white"
+                          >
+                            <option value="all">All Teams</option>
+                            <option value={match.team1}>{match.team1}</option>
+                            <option value={match.team2}>{match.team2}</option>
+                          </select>
+                        </div>
                         
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                          {availablePlayers
-                            .filter(player => player.team === match.team1 || player.team === match.team2)
-                            .map(player => (
-                              <PlayerCard
-                                key={player.id}
-                                player={player}
-                                onSelect={() => {
-                                  handlePlayerSelect(player, index);
-                                  setActiveSlot(null);
-                                }}
-                                disabled={selectedPlayers.filter(Boolean).length >= 5 && !selectedPlayers[index]}
-                                matchId={matchId!}
-                              />
-                            ))}
+                          {filteredAvailablePlayers.map(player => (
+                            <PlayerCard
+                              key={player.id}
+                              player={player}
+                              onSelect={() => {
+                                handlePlayerSelect(player, index);
+                                setActiveSlot(null);
+                              }}
+                              disabled={selectedPlayers.filter(Boolean).length >= 5 && !selectedPlayers[index]}
+                              matchId={matchId!}
+                            />
+                          ))}
                         </div>
                       </div>
                     </div>
